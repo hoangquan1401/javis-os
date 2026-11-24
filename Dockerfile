@@ -33,12 +33,17 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# System deps: ca-certs (TLS), git (Claude tools), ripgrep (fast search used by
-# Claude's Grep), ffmpeg (edge-tts mp3), curl, tini (PID-1 reaper for the node
-# subprocesses Claude spawns).
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates curl git ripgrep ffmpeg tini \
-    && rm -rf /var/lib/apt/lists/*
+# `apt-get upgrade` first: the base layer (openssl, sqlite3, expat, ncurses...) is cached from
+   # whenever python:3.12-slim was last pulled, so a Debian security point-release shipped after
+   # that pull would otherwise sit unpatched in every image built from the cache until someone
+   # bumps the base tag by hand. Re-run this on every build to always carry current trixie patches.
+   #
+   # System deps: ca-certs (TLS), git (Claude tools), ripgrep (fast search used by
+   # Claude's Grep), ffmpeg (edge-tts mp3), curl, tini (PID-1 reaper for the node
+   # subprocesses Claude spawns).
+   RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+           ca-certificates curl git ripgrep ffmpeg tini \
+       && rm -rf /var/lib/apt/lists/*
 
 # Node 22 LTS from stage 1 (npm/npx are symlinks → recreate on PATH).
 COPY --from=node_source /usr/local/bin/node /usr/local/bin/node
